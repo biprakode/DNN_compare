@@ -105,12 +105,16 @@ def rsa(R, R_prime):
     even require the two representations to share a coordinate system, unlike
     Procrustes/CKA. Cast to float32 to keep the two 10000x10000 distance matrices
     memory-manageable.
+
+    Returns (corr, rsm_a, rsm_b) -- the raw RSMs are returned alongside the
+    scalar correlation so callers (e.g. the report/heatmap layer) can display
+    the actual matrices instead of recomputing them.
     """
     rsm_a = squareform(pdist(R.astype(np.float32), metric="euclidean"))
     rsm_b = squareform(pdist(R_prime.astype(np.float32), metric="euclidean"))
     tri = np.triu_indices_from(rsm_a, k=1)
     corr, _ = spearmanr(rsm_a[tri], rsm_b[tri])
-    return float(corr)
+    return float(corr), rsm_a, rsm_b
 
 
 def knn_jaccard(R, R_prime, k=10):
@@ -186,10 +190,23 @@ def performance_difference(preds_victim, preds_clone, y_true):
     """§4.1 Performance difference. The simplest possible functional comparison:
     absolute gap in task accuracy between victim and clone on the same held-out set.
     Uses sklearn.metrics.accuracy_score directly.
+
+    Returns (diff, acc_victim, acc_clone) -- the raw per-model accuracies are
+    returned alongside the scalar gap so callers can display each model's
+    accuracy on its own, not just the difference between them.
     """
     acc_v = accuracy_score(y_true, preds_victim)
     acc_c = accuracy_score(y_true, preds_clone)
-    return float(abs(acc_v - acc_c))
+    return float(abs(acc_v - acc_c)), float(acc_v), float(acc_c)
+
+
+def agreement(preds_victim, preds_clone):
+    """§4.2 Raw agreement. Fraction of instances where victim and clone predict
+    the SAME label, regardless of whether that label is correct -- the
+    unnormalized counterpart to minmax_normalized_disagreement below (agreement
+    == 1 - raw disagreement).
+    """
+    return float(np.mean(preds_victim == preds_clone))
 
 
 def cohens_kappa(preds_victim, preds_clone):

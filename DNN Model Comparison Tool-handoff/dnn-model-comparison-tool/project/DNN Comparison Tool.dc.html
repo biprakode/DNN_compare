@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin:0; padding:0; }
+    a { color:#a15c3e; }
+    a:hover { color:#8a4c31; }
+    input[type="range"] { accent-color:#a15c3e; }
+    @keyframes dc-spin { to { transform: rotate(360deg); } }
+  </style>
+</helmet>
+<div style="height:100vh;display:flex;flex-direction:column;background:#f6f5f2;color:#2b2a27;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13px;overflow:hidden">
+
+  <div style="flex:none;height:52px;display:flex;align-items:center;gap:10px;padding:0 20px;border-bottom:0.5px solid rgba(43,42,39,0.16);background:#ffffff">
+    <span style="font:600 14px 'IBM Plex Sans',system-ui,sans-serif;letter-spacing:0.2px;color:#2b2a27">DNN model comparison tool</span>
+    <span style="font:12px 'IBM Plex Mono',monospace;color:rgba(43,42,39,0.5)">victim vs. clone &middot; representational &amp; functional metrics</span>
+
+    <div style="margin-left:auto">
+      <button onClick="{{ onRecalculate }}" disabled="{{ recalcDisabled }}" title="{{ recalcTitle }}" aria-label="Recalculate" style="{{ recalcBaseStyle }}" style-hover="{{ recalcHoverStyle }}" style-active="{{ recalcActiveStyle }}">
+        <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+          <div style="width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:dc-spin 0.8s linear infinite"></div>
+        </sc-if>
+        <sc-if value="{{ isNotLoading }}" hint-placeholder-val="{{ true }}">
+          <span style="font-size:16px;line-height:1">&#8635;</span>
+        </sc-if>
+      </button>
+    </div>
+  </div>
+
+  <div style="flex:1;min-height:0;display:flex;position:relative">
+
+    <div style="flex:0 0 40%;min-width:380px;max-width:640px;display:flex;flex-direction:column;gap:14px;padding:16px;overflow-y:auto;border-right:0.5px solid rgba(43,42,39,0.16)">
+
+      <div style="background:#fff;border:0.5px solid rgba(43,42,39,0.18);border-radius:3px;padding:16px;display:flex;flex-direction:column;gap:12px;flex:none">
+        <span style="font:600 12px 'IBM Plex Sans';text-transform:uppercase;letter-spacing:0.5px;color:rgba(43,42,39,0.55)">Victim model</span>
+
+        <div>
+          <div style="font:600 11px 'IBM Plex Sans';color:rgba(43,42,39,0.55);text-transform:uppercase;letter-spacing:0.4px">Checkpoint (.pth)</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
+            <label style="cursor:pointer;padding:6px 12px;border:0.5px solid rgba(43,42,39,0.3);border-radius:3px;font:600 12px 'IBM Plex Sans';color:#2b2a27;background:#f6f5f2;flex:none">
+              Choose file
+              <input type="file" accept=".pth" style="display:none" onChange="{{ onVictimFile }}" />
+            </label>
+            <span style="font:12px 'IBM Plex Mono';color:rgba(43,42,39,0.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ victimView.fileNameLabel }}</span>
+          </div>
+        </div>
+
+        <div>
+          <div style="font:600 11px 'IBM Plex Sans';color:rgba(43,42,39,0.55);text-transform:uppercase;letter-spacing:0.4px">Architecture (comma-separated layer widths)</div>
+          <input type="text" value="{{ victimView.architecture }}" onChange="{{ onVictimArchInput }}" placeholder="784, 84, 10" style="width:100%;box-sizing:border-box;padding:7px 9px;margin-top:5px;border:0.5px solid rgba(43,42,39,0.24);border-radius:3px;background:#fff;font:13px 'IBM Plex Mono',monospace;color:#2b2a27" />
+          <sc-if value="{{ victimArchInvalid }}" hint-placeholder-val="{{ false }}">
+            <div style="font:11px 'IBM Plex Sans';color:#a15c3e;margin-top:4px">Enter at least two positive widths, e.g. 784, 84, 10</div>
+          </sc-if>
+        </div>
+
+        <div style="display:flex;gap:12px">
+          <div style="flex:1">
+            <div style="font:600 11px 'IBM Plex Sans';color:rgba(43,42,39,0.55);text-transform:uppercase;letter-spacing:0.4px">Activation</div>
+            <select value="{{ victimView.activation }}" onChange="{{ onVictimActivationChange }}" style="width:100%;box-sizing:border-box;padding:7px 9px;margin-top:5px;border:0.5px solid rgba(43,42,39,0.24);border-radius:3px;background:#fff;font:13px 'IBM Plex Sans';color:#2b2a27">
+              <option value="relu">relu</option>
+              <option value="leaky_relu">leaky_relu</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <div style="font:600 11px 'IBM Plex Sans';color:rgba(43,42,39,0.55);text-transform:uppercase;letter-spacing:0.4px">Dataset (global)</div>
+            <select value="{{ victimView.dataset }}" onChange="{{ onVictimDatasetChange }}" style="width:100%;box-sizing:border-box;padding:7px 9px;margin-top:5px;border:0.5px solid rgba(43,42,39,0.24);border-radius:3px;background:#fff;font:13px 'IBM Plex Sans';color:#2b2a27">
+              <option value="make_blobs">make_blobs</option>
+              <option value="cifar">cifar</option>
+            </select>
+          </div>
+        </div>
+        <div style="font:11px 'IBM Plex Sans';color:rgba(43,42,39,0.5);margin-top:-6px">Applies to both models &mdash; every metric requires identical images.</div>
+
+        <svg width="{{ victimDiagramWidth }}" height="66" style="display:block;margin-top:2px">
+          <sc-for list="{{ victimDiagramConnectors }}" as="c" hint-placeholder-count="2">
+            <line x1="{{ c.x1 }}" y1="21" x2="{{ c.x2 }}" y2="21" stroke="rgba(43,42,39,0.35)" stroke-width="1"></line>
+          </sc-for>
+          <sc-for list="{{ victimDiagramBoxes }}" as="b" hint-placeholder-count="3">
+            <rect x="{{ b.x }}" y="8" width="{{ b.width }}" height="26" fill="#fff" stroke="#a15c3e" stroke-width="1"></rect>
+            <text x="{{ b.cx }}" y="25" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#2b2a27">{{ b.label }}</text>
+          </sc-for>
+          <text x="0" y="58" font-family="IBM Plex Sans, sans-serif" font-size="10" font-weight="600" letter-spacing="1" fill="rgba(43,42,39,0.55)">VICTIM</text>
+        </svg>
+        <sc-if value="{{ victimDiagramEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="font:11px 'IBM Plex Sans';color:rgba(43,42,39,0.45)">Enter a valid architecture above to preview the diagram.</div>
+        </sc-if>
+      </div>
+
+      <div style="background:#fff;border:0.5px solid rgba(43,42,39,0.18);border-radius:3px;padding:16px;display:flex;flex-direction:column;gap:12px;flex:none">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <span style="font:600 12px 'IBM Plex Sans';text-transform:uppercase;letter-spacing:0.5px;color:rgba(43,42,39,0.55)">Clone model</span>
+          <sc-if value="{{ showChangeModeLink }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ resetCloneMode }}" style="border:none;background:none;cursor:pointer;font:600 11px 'IBM Plex Sans';color:#a15c3e;padding:0">Change mode</button>
+          </sc-if>
+        </div>
+
+        <sc-if value="{{ showLocked }}" hint-placeholder-val="{{ true }}">
+          <div style="font:12px 'IBM Plex Sans';color:rgba(43,42,39,0.5);background:#f6f5f2;border:0.5px dashed rgba(43,42,39,0.25);border-radius:3px;padding:14px;text-align:center">Locked &mdash; complete the victim model form above to unlock clone setup.</div>
+        </sc-if>
+
+        <sc-if value="{{ showModeChoice }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;gap:10px">
+            <button onClick="{{ chooseCopy }}" style="flex:1;padding:10px;border:0.5px solid rgba(43,42,39,0.3);border-radius:3px;background:#fff;font:600 12px 'IBM Plex Sans';color:#2b2a27;cursor:pointer">Copy clone</button>
+            <button onClick="{{ chooseUpload }}" style="flex:1;padding:10px;border:0.5px solid rgba(43,42,39,0.3);border-radius:3px;background:#fff;font:600 12px 'IBM Plex Sans';color:#2b2a27;cursor:pointer">Upload clone</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showCopyMode }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <svg width="{{ cloneDiagramWidth }}" height="66" style="display:block">
+              <sc-for list="{{ cloneDiagramConnectors }}" as="c" hint-placeholder-count="2">
+                <line x1="{{ c.x1 }}" y1="21" x2="{{ c.x2 }}" y2="21" stroke="rgba(43,42,39,0.35)" stroke-width="1"></line>
+              </sc-for>
+              <sc-for list="{{ cloneDiagramBoxes }}" as="b" hint-placeholder-count="3">
+                <rect x="{{ b.x }}" y="8" width="{{ b.width }}" height="26" fill="#fff" stroke="#a15c3e" stroke-width="1"></rect>
+                <text x="{{ b.cx }}" y="25" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#2b2a27">{{ b.label }}</text>
+              </sc-for>
+              <text x="0" y="58" font-family="IBM Plex Sans, sans-serif" font-size="10" font-weight="600" letter-spacing="1" fill="rgba(43,42,39,0.55)">CLONE</text>
+            </svg>
+            <div style="font:11px 'IBM Plex Sans';color:rgba(43,42,39,0.5);margin-top:-8px">Same architecture &amp; weights as victim by construction &mdash; adjust per-layer knobs below.</div>
+
+            <sc-for list="{{ layerGroups }}" as="layer" hint-placeholder-count="2">
+              <div style="border-top:0.5px solid rgba(43,42,39,0.14);padding-top:10px">
+                <div style="font:600 12px 'IBM Plex Sans';color:#2b2a27;margin-bottom:2px">{{ layer.label }}</div>
+                <sc-for list="{{ layer.knobDefs }}" as="knob" hint-placeholder-count="3">
+                  <div style="display:flex;flex-direction:column;gap:3px;padding:8px 0">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline">
+                      <span style="font:600 12px 'IBM Plex Sans';color:#2b2a27">{{ knob.label }}</span>
+                      <sc-if value="{{ knob.isPercent }}" hint-placeholder-val="{{ false }}">
+                        <span style="font:11px 'IBM Plex Mono';color:#a15c3e;flex:none;margin-left:8px">{{ knob.pctDisplay }}</span>
+                      </sc-if>
+                    </div>
+                    <div style="font:11px 'IBM Plex Sans';color:rgba(43,42,39,0.55)">{{ knob.sub }}</div>
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:2px">
+                      <input type="range" min="{{ knob.min }}" max="{{ knob.max }}" step="{{ knob.step }}" value="{{ knob.value }}" onChange="{{ knob.onChange }}" style="flex:1" />
+                      <input type="number" min="{{ knob.min }}" max="{{ knob.max }}" step="{{ knob.step }}" value="{{ knob.value }}" onChange="{{ knob.onChange }}" style="width:64px;box-sizing:border-box;padding:5px 6px;border:0.5px solid rgba(43,42,39,0.24);border-radius:3px;font:12px 'IBM Plex Mono';color:#2b2a27" />
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-for>
+
+            <div style="background:rgba(161,92,62,0.08);border:0.5px solid rgba(161,92,62,0.3);border-radius:3px;padding:12px;display:flex;flex-direction:column;gap:6px">
+              <div style="font:600 11px 'IBM Plex Sans';text-transform:uppercase;letter-spacing:0.4px;color:#8a4c31">Live summary &middot; unweighted mean across layers</div>
+              <div style="display:flex;justify-content:space-between;font:12px 'IBM Plex Mono';color:#2b2a27"><span>Avg. target cosine similarity</span><span>{{ summary.avgCosineDisplay }}</span></div>
+              <div style="display:flex;justify-content:space-between;font:12px 'IBM Plex Mono';color:#2b2a27"><span>Avg. % neurons signature-recovered</span><span>{{ summary.avgSigPctDisplay }}</span></div>
+              <div style="display:flex;justify-content:space-between;font:12px 'IBM Plex Mono';color:#2b2a27"><span>Avg. % neurons sign-randomized</span><span>{{ summary.avgSignPctDisplay }}</span></div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showUploadMode }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <div style="font:600 11px 'IBM Plex Sans';color:rgba(43,42,39,0.55);text-transform:uppercase;letter-spacing:0.4px">Checkpoint (.pth)</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
+                <label style="cursor:pointer;padding:6px 12px;border:0.5px solid rgba(43,42,39,0.3);border-radius:3px;font:600 12px 'IBM Plex Sans';color:#2b2a27;background:#f6f5f2;flex:none">
+                  Choose file
+                  <input type="file" accept=".pth" style="display:none" onChange="{{ onCloneFile }}" />
+                </label>
+                <span style="font:12px 'IBM Plex Mono';color:rgba(43,42,39,0.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ cloneUploadView.fileNameLabel }}</span>
+              </div>
+            </div>
+            <div>
+              <div style="font:600 11px 'IBM Plex Sans';color:rgba(43,42,39,0.55);text-transform:uppercase;letter-spacing:0.4px">Architecture (comma-separated layer widths)</div>
+              <input type="text" value="{{ cloneUploadView.architecture }}" onChange="{{ onCloneArchInput }}" placeholder="784, 128, 64, 10" style="width:100%;box-sizing:border-box;padding:7px 9px;margin-top:5px;border:0.5px solid rgba(43,42,39,0.24);border-radius:3px;background:#fff;font:13px 'IBM Plex Mono',monospace;color:#2b2a27" />
+              <sc-if value="{{ cloneArchInvalid }}" hint-placeholder-val="{{ false }}">
+                <div style="font:11px 'IBM Plex Sans';color:#a15c3e;margin-top:4px">Enter at least two positive widths</div>
+              </sc-if>
+            </div>
+            <div>
+              <div style="font:600 11px 'IBM Plex Sans';color:rgba(43,42,39,0.55);text-transform:uppercase;letter-spacing:0.4px">Activation</div>
+              <select value="{{ cloneUploadView.activation }}" onChange="{{ onCloneActivationChange }}" style="width:100%;box-sizing:border-box;padding:7px 9px;margin-top:5px;border:0.5px solid rgba(43,42,39,0.24);border-radius:3px;background:#fff;font:13px 'IBM Plex Sans';color:#2b2a27">
+                <option value="relu">relu</option>
+                <option value="leaky_relu">leaky_relu</option>
+              </select>
+            </div>
+            <div style="font:11px 'IBM Plex Sans';color:rgba(43,42,39,0.5)">Independent model &mdash; compared as-is against the victim, no per-layer knobs.</div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+
+    <div style="flex:1;min-width:0;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:22px">
+
+      <sc-if value="{{ isIdle }}" hint-placeholder-val="{{ true }}">
+        <div style="margin:auto;max-width:360px;text-align:center;font:13px 'IBM Plex Sans';color:rgba(43,42,39,0.45);line-height:1.6">Run Recalculate to see comparison metrics.<br />Every metric is computed on the same fixed dataset for both models.</div>
+      </sc-if>
+
+      <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+        <div style="margin:auto;display:flex;flex-direction:column;align-items:center;gap:12px;max-width:320px;text-align:center">
+          <div style="width:22px;height:22px;border:2.5px solid rgba(43,42,39,0.2);border-top-color:#a15c3e;border-radius:50%;animation:dc-spin 0.8s linear infinite"></div>
+          <span style="font:12px 'IBM Plex Sans';color:rgba(43,42,39,0.55)">Computing metrics &mdash; representational comparisons (CKA, SVCCA, RSM) can take a while.</span>
+          <div style="width:220px;height:6px;background:#ececE7;border-radius:3px;overflow:hidden">
+            <div style="height:100%;background:#a15c3e;width:{{ progressBarWidth }};transition:width 0.15s ease"></div>
+          </div>
+          <span style="font:11px 'IBM Plex Mono';color:rgba(43,42,39,0.5)">{{ progressLabel }}</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+        <div style="margin:auto;max-width:360px;text-align:center;font:12px 'IBM Plex Sans';color:#a15c3e;line-height:1.6;background:rgba(161,92,62,0.08);border:0.5px solid rgba(161,92,62,0.3);border-radius:3px;padding:14px">{{ errorMessage }}</div>
+      </sc-if>
+
+      <sc-if value="{{ hasReport }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:22px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;border-bottom:0.5px solid rgba(43,42,39,0.16);padding-bottom:12px">
+            <div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1">
+              <span style="font:600 13px 'IBM Plex Sans';color:#2b2a27">Comparison report</span>
+              <span style="font:11px 'IBM Plex Mono';color:rgba(43,42,39,0.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ reportContextLine }}</span>
+            </div>
+            <button onClick="{{ downloadJSON }}" style="flex:none;padding:7px 12px;border:0.5px solid rgba(43,42,39,0.3);border-radius:3px;background:#fff;font:600 12px 'IBM Plex Sans';color:#2b2a27;cursor:pointer;white-space:nowrap">Download JSON</button>
+          </div>
+
+          <section>
+            <h3 style="margin:0 0 10px;font:600 13px 'IBM Plex Sans';color:#2b2a27">Functional metrics</h3>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+              <sc-for list="{{ functionalRows }}" as="row" hint-placeholder-count="6">
+                <tr>
+                  <td style="padding:6px 0;border-bottom:0.5px solid rgba(43,42,39,0.12);font:12px 'IBM Plex Sans';color:rgba(43,42,39,0.7)">{{ row.label }}</td>
+                  <td style="padding:6px 0;border-bottom:0.5px solid rgba(43,42,39,0.12);text-align:right;font:12px 'IBM Plex Mono';color:#2b2a27">{{ row.display }}</td>
+                </tr>
+              </sc-for>
+            </table>
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <sc-for list="{{ functionalBars }}" as="bar" hint-placeholder-count="6">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="width:190px;flex:none;font:11px 'IBM Plex Sans';color:rgba(43,42,39,0.6)">{{ bar.label }}</span>
+                  <div style="flex:1;height:9px;background:#ececE7;border-radius:2px;overflow:hidden">
+                    <div style="height:100%;background:#a15c3e;width:{{ bar.barWidth }}"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+
+          <section>
+            <h3 style="margin:0 0 10px;font:600 13px 'IBM Plex Sans';color:#2b2a27">Naive metrics</h3>
+            <table style="width:100%;border-collapse:collapse">
+              <sc-for list="{{ naiveRows }}" as="row" hint-placeholder-count="5">
+                <tr>
+                  <td style="padding:6px 0;border-bottom:0.5px solid rgba(43,42,39,0.12);font:12px 'IBM Plex Sans';color:rgba(43,42,39,0.7)">{{ row.label }}</td>
+                  <td style="padding:6px 0;border-bottom:0.5px solid rgba(43,42,39,0.12);text-align:right;font:12px 'IBM Plex Mono';color:#2b2a27">{{ row.display }}</td>
+                </tr>
+              </sc-for>
+            </table>
+          </section>
+
+          <section style="padding-bottom:24px">
+            <h3 style="margin:0 0 4px;font:600 13px 'IBM Plex Sans';color:#2b2a27">Representational metrics</h3>
+            <sc-for list="{{ repLayers }}" as="layer" hint-placeholder-count="2">
+              <div style="border-top:0.5px solid rgba(43,42,39,0.16);padding:16px 0">
+                <h4 style="margin:0 0 10px;font:600 12px 'IBM Plex Mono';color:#8a4c31">{{ layer.label }}</h4>
+
+                <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+                  <sc-for list="{{ layer.metrics }}" as="m" hint-placeholder-count="9">
+                    <tr>
+                      <td style="padding:5px 0;border-bottom:0.5px solid rgba(43,42,39,0.1);font:12px 'IBM Plex Sans';color:rgba(43,42,39,0.7)">{{ m.label }}</td>
+                      <td style="padding:5px 0;border-bottom:0.5px solid rgba(43,42,39,0.1);text-align:right;font:12px 'IBM Plex Mono';color:#2b2a27">{{ m.display }}</td>
+                    </tr>
+                  </sc-for>
+                </table>
+
+                <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px">
+                  <sc-for list="{{ layer.metrics }}" as="bar" hint-placeholder-count="9">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="width:150px;flex:none;font:11px 'IBM Plex Sans';color:rgba(43,42,39,0.6)">{{ bar.label }}</span>
+                      <div style="flex:1;height:9px;background:#ececE7;border-radius:2px;overflow:hidden">
+                        <div style="height:100%;background:#a15c3e;width:{{ bar.barWidth }}"></div>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <div style="display:flex;gap:20px">
+                  <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
+                    <canvas ref="{{ layer.victimCanvasRef }}" width="120" height="120" style="border:0.5px solid rgba(43,42,39,0.22)"></canvas>
+                    <span style="font:10px 'IBM Plex Mono';color:rgba(43,42,39,0.55)">Victim RSM</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
+                    <canvas ref="{{ layer.cloneCanvasRef }}" width="120" height="120" style="border:0.5px solid rgba(43,42,39,0.22)"></canvas>
+                    <span style="font:10px 'IBM Plex Mono';color:rgba(43,42,39,0.55)">Clone RSM</span>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </section>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    victim: { file: null, fileName: null, architecture: '784, 84, 10', activation: 'relu', dataset: 'make_blobs' },
+    cloneMode: null,
+    cloneUpload: { file: null, fileName: null, architecture: '', activation: 'relu' },
+    knobs: {},
+    recalc: { status: 'idle', report: null, error: null, progress: null }
+  };
+
+  clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+  formatEta(seconds) {
+    if (seconds < 1) return '<1s';
+    if (seconds < 60) return Math.ceil(seconds) + 's';
+    const m = Math.floor(seconds / 60);
+    const s = Math.round(seconds % 60);
+    return m + 'm ' + s + 's';
+  }
+
+  progressBarWidth(progress) {
+    if (!progress) return '0%';
+    return (this.clamp(progress.tested / progress.total, 0, 1) * 100).toFixed(0) + '%';
+  }
+
+  progressLabel(progress) {
+    if (!progress) return 'Starting…';
+    const eta = progress.etaSeconds != null ? ' · ETA ' + this.formatEta(progress.etaSeconds) : '';
+    return progress.tested + ' of ' + progress.total + ' images tested' + eta;
+  }
+
+  parseArchitecture(str) {
+    if (!str) return [];
+    return str.split(',').map(s => parseInt(s.trim(), 10)).filter(n => Number.isFinite(n) && n > 0);
+  }
+
+  getLayers(widths) {
+    if (widths.length < 2) return [];
+    const layers = [];
+    for (let i = 1; i < widths.length; i++) {
+      layers.push({
+        index: i - 1,
+        inputWidth: widths[i - 1],
+        outputWidth: widths[i],
+        neuronCount: widths[i],
+        label: 'Layer ' + i + ' (' + widths[i - 1] + ' \u2192 ' + widths[i] + ')'
+      });
+    }
+    return layers;
+  }
+
+  isVictimValid() {
+    const v = this.state.victim;
+    return !!v.fileName && this.parseArchitecture(v.architecture).length >= 2 && !!v.activation && !!v.dataset;
+  }
+
+  isCloneUploadValid() {
+    const c = this.state.cloneUpload;
+    return !!c.fileName && this.parseArchitecture(c.architecture).length >= 2 && !!c.activation;
+  }
+
+  canRecalculate() {
+    if (this.state.recalc.status === 'loading') return false;
+    if (!this.isVictimValid()) return false;
+    if (this.state.cloneMode === 'copy') return true;
+    if (this.state.cloneMode === 'upload') return this.isCloneUploadValid();
+    return false;
+  }
+
+  recalcDisabledReason() {
+    if (this.state.recalc.status === 'loading') return 'Computing metrics \u2014 please wait';
+    if (!this.isVictimValid()) return 'Complete the victim model form first';
+    if (!this.state.cloneMode) return 'Choose a clone mode below';
+    if (this.state.cloneMode === 'upload' && !this.isCloneUploadValid()) return 'Complete the clone upload form';
+    return 'Run the comparison';
+  }
+
+  getKnob(i) {
+    return this.state.knobs[i] || { signature: 0, cosine: 1.0, sign: 0 };
+  }
+
+  setKnob(i, field, value) {
+    this.setState(s => ({ knobs: { ...s.knobs, [i]: { ...(s.knobs[i] || { signature: 0, cosine: 1.0, sign: 0 }), [field]: value } } }));
+  }
+
+  makeKnobHandler(layerIndex, id, min, max, isFloat) {
+    return (e) => {
+      const raw = e.target.value;
+      const num = isFloat ? parseFloat(raw) : parseInt(raw, 10);
+      if (!Number.isFinite(num)) return;
+      this.setKnob(layerIndex, id, this.clamp(num, min, max));
+    };
+  }
+
+  setVictimField(field, value) { this.setState(s => ({ victim: { ...s.victim, [field]: value } })); }
+  setCloneUploadField(field, value) { this.setState(s => ({ cloneUpload: { ...s.cloneUpload, [field]: value } })); }
+
+  onVictimFile(e) {
+    const f = e.target.files && e.target.files[0];
+    this.setState(s => ({ victim: { ...s.victim, file: f || null, fileName: f ? f.name : null } }));
+  }
+  onCloneFile(e) {
+    const f = e.target.files && e.target.files[0];
+    this.setState(s => ({ cloneUpload: { ...s.cloneUpload, file: f || null, fileName: f ? f.name : null } }));
+  }
+
+  chooseCloneMode(mode) {
+    this.setState({ cloneMode: mode, cloneUpload: { file: null, fileName: null, architecture: '', activation: 'relu' }, knobs: {}, recalc: { status: 'idle', report: null, error: null, progress: null } });
+  }
+
+  resetCloneMode() {
+    this.setState({ cloneMode: null, cloneUpload: { file: null, fileName: null, architecture: '', activation: 'relu' }, knobs: {}, recalc: { status: 'idle', report: null, error: null, progress: null } });
+  }
+
+  getDiagramBoxes(widths, maxWidth) {
+    const n = widths.length;
+    if (n === 0) return { boxes: [], totalWidth: maxWidth, connectors: [] };
+    const gap = 14;
+    const boxW = this.clamp((maxWidth - (n - 1) * gap) / n, 26, 54);
+    const boxes = widths.map((w, i) => ({ i, x: i * (boxW + gap), width: boxW, cx: i * (boxW + gap) + boxW / 2, label: String(w) }));
+    const totalWidth = n * boxW + (n - 1) * gap;
+    const connectors = [];
+    for (let i = 0; i < n - 1; i++) connectors.push({ x1: boxes[i].x + boxW, x2: boxes[i + 1].x });
+    return { boxes, totalWidth, connectors };
+  }
+
+  getKnobDefs(layer) {
+    const k = this.getKnob(layer.index);
+    const n = layer.neuronCount || 1;
+    const sigPct = n ? (k.signature / n * 100) : 0;
+    const signPct = n ? (k.sign / n * 100) : 0;
+    return [
+      {
+        id: 'signature', label: 'Neurons fully reinitialized', sub: 'Signature knob \u2014 hard reset of these neurons\u2019 weights',
+        min: 0, max: n, step: 1, value: k.signature, isPercent: true, pctDisplay: sigPct.toFixed(1) + '%',
+        onChange: this.makeKnobHandler(layer.index, 'signature', 0, n, false)
+      },
+      {
+        id: 'cosine', label: 'Target cosine similarity for recovered neurons', sub: 'Applies only to neurons not touched by the signature knob above',
+        min: 0, max: 1, step: 0.01, value: k.cosine, isPercent: false, pctDisplay: '',
+        onChange: this.makeKnobHandler(layer.index, 'cosine', 0, 1, true)
+      },
+      {
+        id: 'sign', label: 'Neurons with randomized sign', sub: 'Independent of the signature knob \u2014 a neuron may be selected by both, either, or neither',
+        min: 0, max: n, step: 1, value: k.sign, isPercent: true, pctDisplay: signPct.toFixed(1) + '%',
+        onChange: this.makeKnobHandler(layer.index, 'sign', 0, n, false)
+      }
+    ];
+  }
+
+  rampColor(v) {
+    const c1 = [246, 245, 242], c2 = [161, 92, 62];
+    v = this.clamp(v, 0, 1);
+    const r = Math.round(c1[0] + (c2[0] - c1[0]) * v);
+    const g = Math.round(c1[1] + (c2[1] - c1[1]) * v);
+    const b = Math.round(c1[2] + (c2[2] - c1[2]) * v);
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+
+  normalizeMatrixToSimilarity(matrix) {
+    // Backend RSMs are raw pairwise distances (0 = identical). Flip to a
+    // per-matrix min-max-normalized similarity so the heatmap ramp (light =
+    // low, brown = high) still reads as "how similar", matching the
+    // prototype's original fake-similarity matrices.
+    let max = 0;
+    for (const row of matrix) for (const v of row) if (v > max) max = v;
+    if (max === 0) return matrix.map(row => row.map(() => 1));
+    return matrix.map(row => row.map(v => 1 - v / max));
+  }
+
+  drawHeatmap(canvas, matrix) {
+    if (!canvas || !matrix) return;
+    if (canvas.__matrixDrawn === matrix) return;
+    const ctx = canvas.getContext('2d');
+    const n = matrix.length;
+    const cell = canvas.width / n;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        ctx.fillStyle = this.rampColor(matrix[i][j]);
+        ctx.fillRect(j * cell, i * cell, cell + 0.6, cell + 0.6);
+      }
+    }
+    canvas.__matrixDrawn = matrix;
+  }
+
+  buildFormData() {
+    const victim = this.state.victim;
+    const fd = new FormData();
+    fd.append('victim_checkpoint', victim.file);
+    fd.append('victim_architecture', victim.architecture);
+    fd.append('victim_activation', victim.activation);
+    fd.append('dataset', victim.dataset);
+    fd.append('clone_mode', this.state.cloneMode);
+
+    if (this.state.cloneMode === 'copy') {
+      const widths = this.parseArchitecture(victim.architecture);
+      const layers = this.getLayers(widths);
+      const knobsPayload = layers.map(l => {
+        const k = this.getKnob(l.index);
+        return { signature: k.signature, cosine: k.cosine, sign: k.sign };
+      });
+      fd.append('knobs_json', JSON.stringify(knobsPayload));
+    } else {
+      const cloneUpload = this.state.cloneUpload;
+      fd.append('clone_checkpoint', cloneUpload.file);
+      fd.append('clone_architecture', cloneUpload.architecture);
+      fd.append('clone_activation', cloneUpload.activation);
+    }
+    return fd;
+  }
+
+  transformReport(backend, widths, cloneMode) {
+    // The prototype's naive section is a single flat block (not per-layer);
+    // the backend computes naive metrics per layer. We surface the final
+    // ("output") layer's naive comparison as that single block -- it's the
+    // most directly relevant to the network's actual predictions.
+    const naive = backend.naive.output;
+    const naiveRows = [
+      { label: 'Normalized Euclidean distance', display: naive.normalized_euclidean_distance.toFixed(3) },
+      { label: 'Per-instance cosine similarity (mean)', display: naive.per_instance_cosine_similarity[0].toFixed(3) },
+      { label: 'Per-instance cosine similarity (std)', display: naive.per_instance_cosine_similarity[1].toFixed(3) },
+      { label: 'Per-neuron cosine similarity (mean)', display: naive.per_neuron_cosine_similarity[0].toFixed(3) },
+      { label: 'Per-neuron cosine similarity (std)', display: naive.per_neuron_cosine_similarity[1].toFixed(3) }
+    ];
+
+    const layers = this.getLayers(widths);
+    const layerReports = layers.map((l, idx) => {
+      const layerKey = idx === layers.length - 1 ? 'output' : ('act_' + idx);
+      const rep = backend.representational[layerKey];
+      const magRatio = rep.magnitude[1] / rep.magnitude[0];
+
+      const metrics = [
+        { key: 'svcca', label: 'SVCCA', display: rep.svcca.toFixed(3), normalized: this.clamp(rep.svcca, 0, 1) },
+        { key: 'procrustes', label: 'Procrustes distance', display: rep.orthogonal_procrustes.toFixed(3), normalized: this.clamp(1 - rep.orthogonal_procrustes / 2, 0, 1) },
+        { key: 'softmatch', label: 'Soft matching distance', display: rep.soft_matching_distance.toFixed(3), normalized: this.clamp(1 - rep.soft_matching_distance, 0, 1) },
+        { key: 'cka', label: 'CKA', display: rep.cka_linear.toFixed(3), normalized: this.clamp(rep.cka_linear, 0, 1) },
+        { key: 'rsa', label: 'RSA', display: rep.rsa.toFixed(3), normalized: this.clamp((rep.rsa + 1) / 2, 0, 1) },
+        { key: 'knnJaccard', label: 'kNN-Jaccard', display: rep.knn_jaccard.toFixed(3), normalized: this.clamp(rep.knn_jaccard, 0, 1) },
+        { key: 'magnitude', label: 'Magnitude ratio (clone / victim)', display: magRatio.toFixed(3), normalized: this.clamp(1 - Math.min(Math.abs(magRatio - 1), 1), 0, 1) },
+        { key: 'uniformity', label: 'Uniformity (victim / clone)', display: rep.uniformity[0].toFixed(3) + ' / ' + rep.uniformity[1].toFixed(3), normalized: this.clamp((rep.uniformity[1] + 4) / 3, 0, 1) },
+        { key: 'intrinsicDim', label: 'Intrinsic dimension (victim / clone)', display: rep.intrinsic_dimension_pr[0].toFixed(1) + ' / ' + rep.intrinsic_dimension_pr[1].toFixed(1), normalized: this.clamp(rep.intrinsic_dimension_pr[1] / 50, 0, 1) }
+      ].map(m => ({ ...m, barWidth: (m.normalized * 100).toFixed(0) + '%' }));
+
+      return {
+        ...l,
+        metrics,
+        victimMatrix: this.normalizeMatrixToSimilarity(rep.victim_rsm),
+        cloneMatrix: this.normalizeMatrixToSimilarity(rep.clone_rsm)
+      };
+    });
+
+    const func = backend.functional;
+    const functionalRows = [
+      { label: 'Accuracy (victim)', display: (func.accuracy_victim * 100).toFixed(1) + '%' },
+      { label: 'Accuracy (clone)', display: (func.accuracy_clone * 100).toFixed(1) + '%' },
+      { label: 'Performance difference', display: (func.performance_difference * 100).toFixed(1) + '%' },
+      { label: 'Agreement', display: (func.agreement * 100).toFixed(1) + '%' },
+      { label: "Cohen's kappa", display: func.cohens_kappa.toFixed(3) },
+      { label: 'Min-max normalized disagreement', display: func.minmax_normalized_disagreement.toFixed(3) }
+    ];
+    const functionalBars = [
+      { key: 'accuracyVictim', label: 'Accuracy (victim)', barWidth: (this.clamp(func.accuracy_victim, 0, 1) * 100).toFixed(0) + '%' },
+      { key: 'accuracyClone', label: 'Accuracy (clone)', barWidth: (this.clamp(func.accuracy_clone, 0, 1) * 100).toFixed(0) + '%' },
+      { key: 'perfDiff', label: 'Performance difference', barWidth: (this.clamp(func.performance_difference / 0.5, 0, 1) * 100).toFixed(0) + '%' },
+      { key: 'agreement', label: 'Agreement', barWidth: (this.clamp(func.agreement, 0, 1) * 100).toFixed(0) + '%' },
+      { key: 'kappa', label: "Cohen's kappa", barWidth: (this.clamp((func.cohens_kappa + 1) / 2, 0, 1) * 100).toFixed(0) + '%' },
+      { key: 'disagreement', label: 'Min-max normalized disagreement', barWidth: (this.clamp(func.minmax_normalized_disagreement, 0, 1) * 100).toFixed(0) + '%' }
+    ];
+
+    return {
+      generatedAtDisplay: new Date().toLocaleTimeString(),
+      victimArchitecture: widths,
+      cloneMode,
+      naiveRows,
+      layers: layerReports,
+      functionalRows,
+      functionalBars
+    };
+  }
+
+  async onRecalculate() {
+    if (!this.canRecalculate()) return;
+    this.setState({ recalc: { status: 'loading', report: this.state.recalc.report, error: null, progress: null } });
+
+    try {
+      const widths = this.parseArchitecture(this.state.victim.architecture);
+      const res = await fetch('/compare/stream', { method: 'POST', body: this.buildFormData() });
+
+      if (!res.ok) {
+        let detail = 'Request failed with status ' + res.status;
+        try {
+          const body = await res.json();
+          detail = (body && body.detail) || detail;
+        } catch (e) { /* body wasn't JSON -- keep the generic message */ }
+        throw new Error(detail);
+      }
+
+      // /compare/stream sends newline-delimited JSON progress events while
+      // it chunks both models' forward passes, ending in one "done" event
+      // with the final report -- read the raw stream and split on newlines
+      // as chunks arrive rather than waiting for res.json() on the whole body.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finalReport = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex;
+        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, newlineIndex).trim();
+          buffer = buffer.slice(newlineIndex + 1);
+          if (!line) continue;
+          const event = JSON.parse(line);
+
+          if (event.type === 'progress') {
+            this.setState({ recalc: { status: 'loading', report: this.state.recalc.report, error: null, progress: { tested: event.tested, total: event.total, etaSeconds: event.eta_seconds } } });
+          } else if (event.type === 'done') {
+            finalReport = event.report;
+          } else if (event.type === 'error') {
+            throw new Error(event.detail || 'Computation failed');
+          }
+        }
+      }
+
+      if (!finalReport) throw new Error('Stream ended without a final report');
+      const report = this.transformReport(finalReport, widths, this.state.cloneMode);
+      this.setState({ recalc: { status: 'done', report, error: null, progress: null } });
+    } catch (err) {
+      this.setState({ recalc: { status: 'error', report: this.state.recalc.report, error: (err && err.message) || String(err), progress: null } });
+    }
+  }
+
+  downloadJSON() {
+    const report = this.state.recalc.report;
+    if (!report) return;
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'comparison-report.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  renderVals() {
+    const victim = this.state.victim;
+    const widths = this.parseArchitecture(victim.architecture);
+    const layers = this.getLayers(widths);
+    const victimValid = this.isVictimValid();
+    const cloneMode = this.state.cloneMode;
+    const cloneUpload = this.state.cloneUpload;
+
+    const victimView = { ...victim, fileNameLabel: victim.fileName || 'No file selected' };
+    const cloneUploadView = { ...cloneUpload, fileNameLabel: cloneUpload.fileName || 'No file selected' };
+
+    const victimDiagram = this.getDiagramBoxes(widths, 280);
+    const cloneWidths = cloneMode === 'upload' ? this.parseArchitecture(cloneUpload.architecture) : widths;
+    const cloneDiagram = this.getDiagramBoxes(cloneWidths, 280);
+
+    const layerGroups = cloneMode === 'copy' ? layers.map(l => ({ ...l, knobDefs: this.getKnobDefs(l) })) : [];
+    const avg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+    const summary = {
+      avgCosineDisplay: avg(layerGroups.map(l => l.knobDefs[1].value)).toFixed(2),
+      avgSigPctDisplay: avg(layerGroups.map(l => (l.neuronCount ? l.knobDefs[0].value / l.neuronCount * 100 : 0))).toFixed(1) + '%',
+      avgSignPctDisplay: avg(layerGroups.map(l => (l.neuronCount ? l.knobDefs[2].value / l.neuronCount * 100 : 0))).toFixed(1) + '%'
+    };
+
+    const recalc = this.state.recalc;
+    const report = recalc.status === 'done' ? recalc.report : null;
+    const repLayers = report ? report.layers.map(l => ({
+      ...l,
+      victimCanvasRef: (el) => this.drawHeatmap(el, l.victimMatrix),
+      cloneCanvasRef: (el) => this.drawHeatmap(el, l.cloneMatrix)
+    })) : [];
+
+    const canRecalculate = this.canRecalculate();
+    const isLoading = recalc.status === 'loading';
+
+    const reportContextLine = report
+      ? 'Victim: ' + report.victimArchitecture.join('\u2013') + ' \u00b7 ' + victim.activation + ' \u00b7 dataset: ' + victim.dataset + ' \u2014 Clone: ' + (report.cloneMode === 'copy' ? 'copy (tuned)' : 'uploaded') + ' \u2014 generated ' + report.generatedAtDisplay
+      : '';
+
+    return {
+      victimView,
+      victimArchInvalid: victim.architecture.trim().length > 0 && widths.length < 2,
+      onVictimFile: (e) => this.onVictimFile(e),
+      onVictimArchInput: (e) => this.setVictimField('architecture', e.target.value),
+      onVictimActivationChange: (e) => this.setVictimField('activation', e.target.value),
+      onVictimDatasetChange: (e) => this.setVictimField('dataset', e.target.value),
+      victimDiagramBoxes: victimDiagram.boxes,
+      victimDiagramWidth: victimDiagram.totalWidth,
+      victimDiagramConnectors: victimDiagram.connectors,
+      victimDiagramEmpty: widths.length === 0,
+
+      showLocked: !victimValid,
+      showChangeModeLink: victimValid && !!cloneMode,
+      showModeChoice: victimValid && !cloneMode,
+      showCopyMode: victimValid && cloneMode === 'copy',
+      showUploadMode: victimValid && cloneMode === 'upload',
+      chooseCopy: () => this.chooseCloneMode('copy'),
+      chooseUpload: () => this.chooseCloneMode('upload'),
+      resetCloneMode: () => this.resetCloneMode(),
+
+      cloneDiagramBoxes: cloneDiagram.boxes,
+      cloneDiagramWidth: cloneDiagram.totalWidth,
+      cloneDiagramConnectors: cloneDiagram.connectors,
+
+      cloneUploadView,
+      cloneArchInvalid: cloneUpload.architecture.trim().length > 0 && this.parseArchitecture(cloneUpload.architecture).length < 2,
+      onCloneFile: (e) => this.onCloneFile(e),
+      onCloneArchInput: (e) => this.setCloneUploadField('architecture', e.target.value),
+      onCloneActivationChange: (e) => this.setCloneUploadField('activation', e.target.value),
+
+      layerGroups,
+      summary,
+
+      recalcDisabled: !canRecalculate,
+      recalcTitle: this.recalcDisabledReason(),
+      recalcBaseStyle: {
+        width: '38px', height: '38px', borderRadius: '50%', border: 'none',
+        cursor: canRecalculate ? 'pointer' : 'not-allowed',
+        background: canRecalculate ? '#a15c3e' : '#e2dfd8',
+        color: canRecalculate ? '#fff' : 'rgba(43,42,39,0.4)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: canRecalculate
+          ? '0 0 0 4px #ffffff, 0 0 0 7px rgba(161,92,62,0.16), 0 2px 6px rgba(43,42,39,0.2)'
+          : '0 0 0 4px #ffffff, 0 1px 2px rgba(43,42,39,0.1)',
+        transition: 'background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease'
+      },
+      recalcHoverStyle: canRecalculate ? {
+        background: '#8a4c31', boxShadow: '0 0 0 4px #ffffff, 0 0 0 8px rgba(161,92,62,0.22), 0 2px 8px rgba(43,42,39,0.24)', transform: 'scale(1.05)'
+      } : {},
+      recalcActiveStyle: canRecalculate ? {
+        background: '#7c4229', boxShadow: '0 0 0 4px #ffffff, 0 0 0 6px rgba(161,92,62,0.18)', transform: 'scale(0.96)'
+      } : {},
+      onRecalculate: () => this.onRecalculate(),
+      isLoading,
+      isNotLoading: !isLoading,
+      isIdle: recalc.status === 'idle',
+      isError: recalc.status === 'error',
+      errorMessage: recalc.error || '',
+      progressBarWidth: this.progressBarWidth(recalc.progress),
+      progressLabel: this.progressLabel(recalc.progress),
+
+      hasReport: !!report,
+      reportContextLine,
+      naiveRows: report ? report.naiveRows : [],
+      repLayers,
+      functionalRows: report ? report.functionalRows : [],
+      functionalBars: report ? report.functionalBars : [],
+      downloadJSON: () => this.downloadJSON()
+    };
+  }
+}
+</script>
+</body>
+</html>
