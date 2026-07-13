@@ -32,7 +32,7 @@ def svcca(R, R_prime, variance_threshold=0.99):
     """§3.1 SVCCA. PCA-denoise both representations to `variance_threshold`
     explained variance (discards low-variance directions that are usually noise
     rather than signal in high-dim nets), then run CCA on the denoised
-    representations and report the mean canonical correlation.
+    representations and report the mean canonical correlation.re
     """
     a = PCA(n_components=variance_threshold, svd_solver="full").fit_transform(R)
     b = PCA(n_components=variance_threshold, svd_solver="full").fit_transform(R_prime)
